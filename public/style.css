@@ -431,14 +431,17 @@ input[readonly] { cursor: default; color: var(--muted); font-size: 12px; }
 }
 .opp-minis { display: flex; align-items: center; }
 .mini-card {
-  width: 11px; height: 18px; border-radius: 1px;
-  background: linear-gradient(160deg, #1e3a70, #0d1f3c);
-  border: 1.5px solid #fff;
-  margin-left: -4px; flex-shrink: 0;
-  image-rendering: pixelated;
-  box-shadow: 1px 1px 0 rgba(0,0,0,.5);
+  width: 13px; height: 20px; border-radius: 2px;
+  overflow: hidden; flex-shrink: 0;
+  margin-left: -4px;
+  box-shadow: 0 0 0 1.5px #fff, 1px 1px 0 rgba(0,0,0,.5);
+  image-rendering: pixelated; image-rendering: crisp-edges;
 }
 .mini-card:first-child { margin-left: 0; }
+.mini-card img {
+  width: 100%; height: 100%; object-fit: fill; display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
 .opp-count {
   font-family: var(--px); font-size: 8px; color: var(--text);
 }
@@ -467,140 +470,76 @@ input[readonly] { cursor: default; color: var(--muted); font-size: 12px; }
 .piles { display: flex; align-items: center; gap: 24px; }
 
 /* ═══════════════════════════════
-   UNO CARDS — Pixel Fantasy
-   Hard edges, white border,
-   colored fill, inner oval,
-   pixel-style fonts
+   UNO CARDS — Sprite based
 ═══════════════════════════════ */
 .ucard {
-  width: var(--cw); height: var(--ch);
+  width: var(--cw);
+  height: var(--ch);
   border-radius: 6px;
-  position: relative; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; user-select: none; overflow: hidden;
-  /* Solid white outer border */
-  box-shadow: 0 0 0 3px #fff, 2px 4px 0 rgba(0,0,0,.7);
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; user-select: none;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
-
-/* Card colors */
-.ucard.cr { background: linear-gradient(170deg, #c0392b 0%, #7a1a15 100%); }
-.ucard.cg { background: linear-gradient(170deg, #1a6b33 0%, #0f3d1e 100%); }
-.ucard.cb { background: linear-gradient(170deg, #1a3d99 0%, #0e2060 100%); }
-.ucard.cy { background: linear-gradient(170deg, #997722 0%, #5c4410 100%); }
-.ucard.cw { background: #0a0a14; }
-
-/* Wild quadrant */
-.ucard.cw .wild-bg {
-  position: absolute; inset: 0;
-  background: conic-gradient(
-    #c0392b  0deg  90deg,
-    #1a6b33 90deg 180deg,
-    #1a3d99 180deg 270deg,
-    #997722 270deg 360deg
-  );
-  opacity: .65;
-}
-
-/* Inner oval — hallmark UNO shape */
-.ucard .oval {
-  position: absolute;
-  width: 82%; height: 58%;
-  border-radius: 50%;
-  transform: rotate(-28deg);
-  background: rgba(255,255,255,.1);
-  border: 2px solid rgba(255,255,255,.45);
+.ucard img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  border-radius: 6px;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  /* Pixel-art white border */
+  box-shadow: 0 0 0 2px #fff, 2px 3px 0 rgba(0,0,0,.7);
   pointer-events: none;
 }
-.ucard.cy .oval { border-color: rgba(0,0,0,.2); background: rgba(0,0,0,.07); }
-.ucard.cw .oval { border-color: rgba(255,255,255,.25); background: transparent; }
 
-/* Corner index */
-.ucard .idx {
-  position: absolute; z-index: 3;
-  font-family: var(--px);
-  font-weight: 400; /* Press Start 2P has no bold */
-  color: #fff; line-height: 1;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  font-size: clamp(8px, 1.8vw, 10px);
-  text-shadow: 1px 1px 0 rgba(0,0,0,.8);
-  image-rendering: pixelated;
-}
-.ucard.cy .idx { color: rgba(0,0,0,.8); text-shadow: none; }
-.ucard .idx.tl { top: 4px; left: 5px; }
-.ucard .idx.br { bottom: 4px; right: 5px; transform: rotate(180deg); }
-
-/* Center symbol */
-.ucard .center {
-  position: relative; z-index: 2;
-  font-family: var(--px);
-  text-align: center; line-height: 1; color: #fff;
-  text-shadow: 2px 2px 0 rgba(0,0,0,.8);
-  image-rendering: pixelated;
-}
-.ucard.cy .center { color: rgba(0,0,0,.8); text-shadow: none; }
-.ucard.num .center { font-size: clamp(20px, 4.5vw, 28px); }
-.ucard.act .center { font-size: clamp(13px, 3vw, 18px); }
-
-/* Wild circle */
-.ucard.cw .center {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: conic-gradient(
-    #c0392b  0deg  90deg,
-    #1a6b33 90deg 180deg,
-    #1a3d99 180deg 270deg,
-    #997722 270deg 360deg
-  );
-  font-size: 0;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.3), 1px 2px 0 rgba(0,0,0,.6);
-}
-.ucard.cw.w4 .center::after {
-  content: '+4';
-  font-family: var(--px); font-size: 9px; color: #fff;
-  text-shadow: 1px 1px 0 rgba(0,0,0,.9);
+/* Card colors (kept for cdot status indicator) */
+.cdot.red    { background: #c0392b; }
+.cdot.green  { background: #1a6b33; }
+.cdot.blue   { background: #1a3d99; }
+.cdot.yellow { background: #997722; }
+.cdot.wild {
+  background: conic-gradient(#c0392b 0 90deg,#1a6b33 90deg 180deg,
+                             #1a3d99 180deg 270deg,#997722 270deg);
+  border-radius: 1px;
 }
 
 /* ═══════════════════════════════
-   DRAW PILE — card back
+   DRAW PILE — sprite + badge
 ═══════════════════════════════ */
+.draw-pile-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .draw-pile {
   width: var(--cw); height: var(--ch);
   border-radius: 6px;
-  background: linear-gradient(160deg, #1a3570 0%, #0a1535 100%);
-  box-shadow: 0 0 0 3px #fff, 2px 4px 0 rgba(0,0,0,.7);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px;
-  cursor: pointer; position: relative; overflow: hidden;
-  transition: transform .08s, box-shadow .08s;
-  flex-shrink: 0; image-rendering: pixelated;
+  cursor: pointer;
+  transition: transform .08s, filter .08s;
+  display: block;
 }
-/* Inner oval on back */
-.draw-pile::before {
-  content: '';
-  position: absolute;
-  width: 82%; height: 58%;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,.25);
-  background: rgba(255,255,255,.03);
-  transform: rotate(-28deg);
+.draw-pile img {
+  width: 100%; height: 100%;
+  object-fit: fill; border-radius: 6px; display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  box-shadow: 0 0 0 2px #fff, 2px 3px 0 rgba(0,0,0,.7);
   pointer-events: none;
 }
-.dp-uno {
-  font-family: var(--px); font-size: 13px;
-  font-style: italic; letter-spacing: 2px;
-  color: var(--gold2);
-  text-shadow: 2px 2px 0 #5a3a00, 0 0 12px rgba(221,187,85,.35);
-  position: relative; z-index: 2;
-}
-#draw-label {
-  font-family: var(--px); font-size: 7px; letter-spacing: 1.5px;
-  color: rgba(255,255,255,.4); text-transform: uppercase;
-  position: relative; z-index: 2;
-}
-.draw-pile:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 0 0 3px #fff, 2px 9px 0 rgba(0,0,0,.7);
-}
+.draw-pile:hover  { transform: translateY(-5px); filter: brightness(1.1); }
 .draw-pile:active { transform: translateY(0); }
+
+.draw-badge {
+  position: absolute;
+  bottom: -8px; left: 50%; transform: translateX(-50%);
+  font-family: var(--px); font-size: 8px; letter-spacing: 1px;
+  background: #1a0505; border: 2px solid var(--red);
+  color: #ffaaaa; border-radius: var(--r);
+  padding: 2px 6px;
+  box-shadow: 2px 2px 0 rgba(0,0,0,.6);
+  white-space: nowrap; z-index: 5;
+}
 
 /* Discard wrapper */
 .pile-wrap {
@@ -608,6 +547,7 @@ input[readonly] { cursor: default; color: var(--muted); font-size: 12px; }
   border-radius: 6px;
   border: 2px dashed var(--border2);
   display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 .pile-wrap .ucard { position: absolute; }
 
@@ -839,12 +779,6 @@ input[readonly] { cursor: default; color: var(--muted); font-size: 12px; }
 ═══════════════════════════════ */
 @media (max-width: 380px) {
   :root { --cw: 52px; --ch: 78px; --overlap: -14px; }
-  .ucard .idx { font-size: 7px; }
-  .ucard.num .center { font-size: 16px; }
-  .ucard.act .center { font-size: 11px; }
-  .ucard.cw .center  { width: 30px; height: 30px; }
-  .dp-uno { font-size: 10px; }
-  #draw-label { font-size: 6px; }
 }
 @media (max-width: 480px) {
   :root { --cw: 56px; --ch: 84px; --overlap: -15px; }

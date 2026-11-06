@@ -16,6 +16,7 @@
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "socket.io-client": "^4.8.4"
   }
 }

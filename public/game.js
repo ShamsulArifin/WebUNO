@@ -256,7 +256,8 @@ function renderOpponents(state) {
 
     const n = Math.min(p.handCount, 8);
     let minis = '<div class="opp-minis">';
-    for (let i = 0; i < n; i++) minis += '<div class="mini-card"></div>';
+    for (let i = 0; i < n; i++)
+      minis += '<div class="mini-card"><img src="/cards/card_000.png" alt="" draggable="false"/></div>';
     minis += '</div>';
 
     const canCatch = p.handCount === 1 && !p.saidUno && !isActive;
@@ -279,8 +280,7 @@ function renderDiscard(state) {
   const isNew = state.topCard.id !== lastTopCardId;
   lastTopCardId = state.topCard.id;
 
-  const col = state.currentColor || state.topCard.color;
-  const el  = buildCard(state.topCard, col);
+  const el = buildCard(state.topCard);
   el.style.position = 'absolute';
   if (isNew) el.classList.add('flip-in');
 
@@ -311,7 +311,14 @@ function updateDrawPile(state) {
   const dp = $('draw-pile');
   dp.style.opacity = isMyTurn ? '1' : '0.4';
   dp.style.cursor  = isMyTurn ? 'pointer' : 'default';
-  $('draw-label').textContent = state.drawStack > 0 ? `+${state.drawStack}` : 'DRAW';
+  // Update the +N badge if there's a draw stack
+  const badge = $('draw-badge');
+  if (state.drawStack > 0) {
+    badge.textContent = `+${state.drawStack}`;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 $('draw-pile').onclick = () => {
@@ -345,7 +352,7 @@ function renderHand(mode = '') {
     if (mode === 'draw' && idx === myHand.length - 1)
       wrap.classList.add('draw-anim');
 
-    wrap.appendChild(buildCard(card, card.color));
+    wrap.appendChild(buildCard(card));
     if (playable) wrap.onclick = () => handlePlay(card);
     container.appendChild(wrap);
   });
@@ -414,64 +421,83 @@ $('btn-play-again').onclick = () => socket.emit('play_again');
 $('btn-go-home').onclick    = () => { location.href = '/'; };
 
 // ═══════════════════════════════════════════════════════════════
-//  CARD BUILDER
+//  SPRITE MAP
+//  card_000 = back
+//  card_008-059 = first copy: 0-9,skip,rev,draw2  × R,B,G,Y
+//  card_060-107 = second copy: 1-9,skip,rev,draw2 × R,B,G,Y
+//  card_108-111 = wild ×4
+//  card_112-115 = wild_draw4 ×4
 // ═══════════════════════════════════════════════════════════════
-function buildCard(card, colorHint) {
-  const isWild = card.value === 'wild' || card.value === 'wild_draw4';
-  const isNum  = !isNaN(parseInt(card.value, 10));
-  const isAct  = ['skip','reverse','draw2'].includes(card.value);
-  const col    = colorHint || card.color;
+const CARD_BACK = '/cards/card_000.png';
 
-  const el = document.createElement('div');
-  const cc = { red:'cr', green:'cg', blue:'cb', yellow:'cy', wild:'cw' }[col] || 'cw';
-  const tc = isNum ? 'num' : isAct ? 'act' : isWild ? (card.value === 'wild_draw4' ? 'w4' : '') : '';
-  el.className = `ucard ${cc} ${tc}`.trim();
+// Build lookup: "<color>_<value>" -> "/cards/card_NNN.png"
+const SPRITE = (() => {
+  const m = {};
+  const colors = ['red','blue','green','yellow'];
+  const vals1  = ['0','1','2','3','4','5','6','7','8','9','skip','reverse','draw2'];
+  const vals2  = [    '1','2','3','4','5','6','7','8','9','skip','reverse','draw2'];
+  const fn = n => `/cards/card_${String(n).padStart(3,'0')}.png`;
 
-  if (isWild) {
-    const bg = document.createElement('div');
-    bg.className = 'wild-bg';
-    el.appendChild(bg);
+  let i = 8;
+  for (const v of vals1) for (const c of colors) { m[`${c}_${v}`] = fn(i++); }
+  for (const v of vals2) for (const c of colors) { m[`${c}_${v}_b`] = fn(i++); }
+  for (let j=0;j<4;j++) m[`wild_${j}`]     = fn(i++);
+  for (let j=0;j<4;j++) m[`wild_draw4_${j}`] = fn(i++);
+  return m;
+})();
+
+// Resolve a card object to its sprite path.
+// The server assigns ids like "red_5_a", "red_5_b", "wild_0", "wd4_0"
+// We normalise those to our sprite keys.
+function cardSprite(card) {
+  const v = card.value;
+  const c = card.color;
+
+  if (v === 'wild') {
+    // id is like "wild_0" .. "wild_3"
+    const key = card.id.replace(/^wild_/, 'wild_');
+    return SPRITE[key] || SPRITE['wild_0'];
+  }
+  if (v === 'wild_draw4') {
+    // server id is "wd4_0" .. "wd4_3"
+    const idx = card.id.replace('wd4_','');
+    return SPRITE[`wild_draw4_${idx}`] || SPRITE['wild_draw4_0'];
   }
 
-  const oval = document.createElement('div');
-  oval.className = 'oval';
-  el.appendChild(oval);
+  // Coloured card — use _b suffix for second-copy ids (ending in _b)
+  const isCopyB = card.id.endsWith('_b');
+  if (v === '0') {
+    // No second copy of 0 in standard UNO — always use first
+    return SPRITE[`${c}_0`];
+  }
+  const key = isCopyB ? `${c}_${v}_b` : `${c}_${v}`;
+  return SPRITE[key] || SPRITE[`${c}_${v}`];
+}
 
-  const tl = document.createElement('div');
-  tl.className = 'idx tl';
-  tl.innerHTML = idxHtml(card);
-  el.appendChild(tl);
+// ── Card builder — uses sprite images ─────────────────────────
+function buildCard(card, _colorHint) {
+  const el = document.createElement('div');
+  el.className = 'ucard';
 
-  const center = document.createElement('div');
-  center.className = 'center';
-  if (!isWild) center.textContent = centerSym(card);
-  el.appendChild(center);
-
-  const br = document.createElement('div');
-  br.className = 'idx br';
-  br.innerHTML = idxHtml(card);
-  el.appendChild(br);
+  const img = document.createElement('img');
+  img.src    = cardSprite(card);
+  img.alt    = cardLabel(card);
+  img.draggable = false;
+  el.appendChild(img);
 
   return el;
 }
 
-function idxHtml(card) {
-  switch (card.value) {
-    case 'skip':       return '<span>⊘</span>';
-    case 'reverse':    return '<span>↺</span>';
-    case 'draw2':      return '<span>+2</span>';
-    case 'wild':       return '<span>W</span>';
-    case 'wild_draw4': return '<span>W</span><span style="font-size:7px;margin-top:2px">+4</span>';
-    default:           return `<span>${card.value}</span>`;
-  }
-}
-function centerSym(card) {
-  switch (card.value) {
-    case 'skip':    return '⊘';
-    case 'reverse': return '↺';
-    case 'draw2':   return '+2';
-    default:        return card.value;
-  }
+// Back-of-card element (for draw pile, opponent mini cards)
+function buildCardBack() {
+  const el = document.createElement('div');
+  el.className = 'ucard ucard-back';
+  const img = document.createElement('img');
+  img.src = CARD_BACK;
+  img.alt = 'card back';
+  img.draggable = false;
+  el.appendChild(img);
+  return el;
 }
 function cardLabel(card) {
   const cn = { red:'RED', green:'GRN', blue:'BLU', yellow:'YLW', wild:'WLD' };
