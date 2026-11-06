@@ -3,6 +3,19 @@ const http    = require('http');
 const { Server } = require('socket.io');
 const path    = require('path');
 const QRCode  = require('qrcode');
+const os      = require('os');
+
+// Resolve LAN IP once at startup so QR codes work across devices
+function getLanIp() {
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const i of ifaces) {
+      if (i.family === 'IPv4' && !i.internal) return i.address;
+    }
+  }
+  return 'localhost';
+}
+const PORT   = process.env.PORT   || 3000;
+const LAN_IP = process.env.HOST_IP || getLanIp();
 
 const app    = express();
 const server = http.createServer(app);
@@ -444,11 +457,13 @@ app.get('/api/qr/:code', async (req, res) => {
   const room = getRoom(req.params.code);
   if (!room) return res.status(404).json({ error: 'Not found' });
   try {
-    const url = `${req.protocol}://${req.get('host')}/join/${room.code}`;
-    const qr  = await QRCode.toDataURL(url, { width: 240, margin: 1,
+    // Always use LAN IP so QR works when scanned from other devices
+    const url = `http://${LAN_IP}:${PORT}/join/${room.code}`;
+    const qr  = await QRCode.toDataURL(url, { width: 256, margin: 2,
       color: { dark: '#111827', light: '#f9fafb' } });
     res.json({ qr, url });
-  } catch {
+  } catch (e) {
+    console.error('QR error', e);
     res.status(500).json({ error: 'QR failed' });
   }
 });
@@ -457,5 +472,9 @@ app.get('/{*path}', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 );
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`WebUNO → http://localhost:${PORT}`));
+
+// ── Start ─────────────────────────────────────────────────────
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`WebUNO → http://localhost:${PORT}`);
+  console.log(`WebUNO → http://${LAN_IP}:${PORT}  (share this for QR/LAN)`);
+});

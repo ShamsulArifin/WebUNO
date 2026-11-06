@@ -8,10 +8,10 @@
 </head>
 <body>
 
-<!-- Toast container (global) -->
+<!-- Global toast container -->
 <div id="toasts"></div>
 
-<!-- ═══════════ HOME ═══════════ -->
+<!-- ══════════ HOME ══════════ -->
 <div id="s-home" class="screen active">
   <h1 class="logo">UNO</h1>
   <p class="sub">Up to 6 players · Real-time</p>
@@ -21,19 +21,19 @@
   </div>
 </div>
 
-<!-- ═══════════ CREATE ═══════════ -->
+<!-- ══════════ CREATE ══════════ -->
 <div id="s-create" class="screen">
   <h2>Create Room</h2>
   <label>Your name
     <input id="create-name" type="text" maxlength="20" placeholder="Name" autocomplete="off" />
   </label>
   <div class="row gap">
-    <button class="btn ghost" id="btn-create-back">Back</button>
+    <button class="btn ghost"   id="btn-create-back">Back</button>
     <button class="btn primary" id="btn-create-confirm">Create</button>
   </div>
 </div>
 
-<!-- ═══════════ JOIN ═══════════ -->
+<!-- ══════════ JOIN ══════════ -->
 <div id="s-join" class="screen">
   <h2>Join Room</h2>
   <label>Your name
@@ -43,26 +43,24 @@
     <input id="join-code" type="text" maxlength="6" placeholder="XXXXXX" autocomplete="off" />
   </label>
   <div class="row gap">
-    <button class="btn ghost" id="btn-join-back">Back</button>
+    <button class="btn ghost"   id="btn-join-back">Back</button>
     <button class="btn primary" id="btn-join-confirm">Join</button>
   </div>
 </div>
 
-<!-- ═══════════ LOBBY ═══════════ -->
+<!-- ══════════ LOBBY ══════════ -->
 <div id="s-lobby" class="screen">
   <div class="lobby-layout">
 
     <div class="lobby-left">
-      <div class="row space-between">
-        <h2>Lobby</h2>
-        <div class="code-chip" id="lobby-code-chip">
+      <div class="row sb">
+        <h2 style="margin:0">Lobby</h2>
+        <div class="code-chip">
           <span id="lcode"></span>
           <button class="icon-btn" id="btn-copy-code" title="Copy code">⧉</button>
         </div>
       </div>
-
       <div id="lobby-players" class="player-list"></div>
-
       <div id="host-section">
         <p class="hint" id="lobby-hint"></p>
         <button class="btn primary" id="btn-start" disabled>Start Game</button>
@@ -74,9 +72,7 @@
 
     <div class="lobby-right">
       <p class="label">Invite</p>
-      <div class="qr-wrap" id="qr-wrap">
-        <img id="qr-img" src="" alt="QR" />
-      </div>
+      <div class="qr-wrap"><img id="qr-img" src="" alt="QR Code" /></div>
       <div class="invite-row">
         <input id="invite-link" type="text" readonly />
         <button class="btn sm" id="btn-copy-link">Copy</button>
@@ -87,28 +83,38 @@
   </div>
 </div>
 
-<!-- ═══════════ GAME ═══════════ -->
+<!-- ══════════ GAME ══════════ -->
 <div id="s-game" class="screen">
 
+  <!-- Other players -->
   <div id="opp-area"></div>
 
+  <!-- Center table -->
   <div class="table">
     <div class="piles">
-      <div class="card card-back" id="draw-pile"><span id="draw-label">DRAW</span></div>
-      <div class="card" id="discard-pile"></div>
+      <!-- Draw pile -->
+      <div class="draw-pile" id="draw-pile">
+        <span id="draw-label">DRAW</span>
+      </div>
+      <!-- Discard pile -->
+      <div class="pile-wrap" id="discard-wrap">
+        <!-- cards inserted here by JS -->
+      </div>
     </div>
     <div class="status-row">
-      <span id="st-dir"></span>
-      <span id="st-color" class="cdot"></span>
+      <span id="st-dir">↻</span>
+      <span id="st-color" class="cdot wild"></span>
       <span id="st-turn"></span>
     </div>
   </div>
 
+  <!-- Action buttons -->
   <div id="action-row">
     <button class="btn sm ghost" id="btn-pass" style="display:none">Pass</button>
     <button class="btn uno"      id="btn-uno"  style="display:none">UNO!</button>
   </div>
 
+  <!-- My hand -->
   <div id="hand-area">
     <div id="my-hand"></div>
   </div>
@@ -119,16 +125,16 @@
       <p>Choose a color</p>
       <div class="color-grid">
         <button class="cbtn" data-color="red"    style="background:#e63946">Red</button>
-        <button class="cbtn" data-color="green"  style="background:#2a9d5c">Green</button>
-        <button class="cbtn" data-color="blue"   style="background:#3b82f6">Blue</button>
-        <button class="cbtn" data-color="yellow" style="background:#f59e0b;color:#111">Yellow</button>
+        <button class="cbtn" data-color="green"  style="background:#1db954">Green</button>
+        <button class="cbtn" data-color="blue"   style="background:#2563eb">Blue</button>
+        <button class="cbtn" data-color="yellow" style="background:#f59e0b">Yellow</button>
       </div>
     </div>
   </div>
 
 </div>
 
-<!-- ═══════════ GAME OVER ═══════════ -->
+<!-- ══════════ GAME OVER ══════════ -->
 <div id="s-gameover" class="screen">
   <div class="go-box">
     <div class="go-trophy">🏆</div>
