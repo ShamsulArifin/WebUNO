@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebUNO – Multiplayer UNO</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════ SCREENS ═══════════════════════════════ -->
+
+<!-- HOME SCREEN -->
+<div id="screen-home" class="screen active">
+  <div class="home-bg"></div>
+  <div class="home-card glass">
+    <div class="uno-logo">UNO</div>
+    <p class="tagline">Play with up to 6 friends — anywhere</p>
+    <div class="home-actions">
+      <button class="btn btn-primary btn-lg" id="btn-create">Create Room</button>
+      <button class="btn btn-secondary btn-lg" id="btn-join-home">Join Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ROOM SCREEN -->
+<div id="screen-create" class="screen">
+  <div class="panel glass">
+    <h2>Create a Room</h2>
+    <label>Your Name
+      <input type="text" id="create-name" maxlength="20" placeholder="Enter your name" autocomplete="off" />
+    </label>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-create-back">← Back</button>
+      <button class="btn btn-primary" id="btn-create-confirm">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- JOIN ROOM SCREEN -->
+<div id="screen-join" class="screen">
+  <div class="panel glass">
+    <h2>Join a Room</h2>
+    <label>Your Name
+      <input type="text" id="join-name" maxlength="20" placeholder="Enter your name" autocomplete="off" />
+    </label>
+    <label>Room Code
+      <input type="text" id="join-code" maxlength="6" placeholder="6-character code" autocomplete="off" style="text-transform:uppercase" />
+    </label>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-join-back">← Back</button>
+      <button class="btn btn-primary" id="btn-join-confirm">Join</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOBBY SCREEN -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-wrap">
+    <div class="lobby-main glass">
+      <div class="lobby-header">
+        <div class="uno-logo-sm">UNO</div>
+        <div class="room-code-display">
+          Room: <span id="lobby-code"></span>
+          <button class="icon-btn" id="btn-copy-code" title="Copy code">📋</button>
+        </div>
+      </div>
+
+      <div class="player-list" id="lobby-players"></div>
+
+      <div id="lobby-host-controls" style="display:none">
+        <p class="hint" id="lobby-hint">Waiting for more players… (need at least 2)</p>
+        <button class="btn btn-primary btn-lg" id="btn-start" disabled>Start Game</button>
+      </div>
+      <div id="lobby-guest-info">
+        <p class="hint">Waiting for the host to start the game…</p>
+      </div>
+    </div>
+
+    <div class="lobby-invite glass">
+      <h3>Invite Friends</h3>
+      <div class="qr-container">
+        <img id="qr-image" src="" alt="QR Code" />
+      </div>
+      <div class="invite-link-wrap">
+        <input type="text" id="invite-link" readonly />
+        <button class="btn btn-secondary btn-sm" id="btn-copy-link">Copy Link</button>
+      </div>
+      <p class="invite-hint">Scan QR or share the link / code</p>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="screen-game" class="screen">
+  <!-- Opponents row -->
+  <div id="opponents-area"></div>
+
+  <!-- Center play area -->
+  <div class="play-area">
+    <div class="deck-zone">
+      <div class="card-back" id="draw-pile" title="Draw a card">
+        <span>DRAW</span>
+      </div>
+      <div id="discard-pile" class="discard-card"></div>
+    </div>
+    <div class="game-status-bar">
+      <span id="status-direction"></span>
+      <span id="status-color" class="color-dot"></span>
+      <span id="status-turn"></span>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div id="action-bar">
+    <button class="btn btn-ghost btn-sm" id="btn-pass" style="display:none">Pass Turn</button>
+    <button class="btn btn-uno" id="btn-uno">UNO!</button>
+  </div>
+
+  <!-- Player's hand -->
+  <div id="my-hand-area">
+    <div id="my-hand"></div>
+  </div>
+
+  <!-- Color picker overlay -->
+  <div id="color-picker" class="overlay" style="display:none">
+    <div class="color-picker-panel glass">
+      <h3>Choose a color</h3>
+      <div class="color-choices">
+        <button class="color-btn red" data-color="red">Red</button>
+        <button class="color-btn green" data-color="green">Green</button>
+        <button class="color-btn blue" data-color="blue">Blue</button>
+        <button class="color-btn yellow" data-color="yellow">Yellow</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="screen-gameover" class="screen">
+  <div class="panel glass gameover-panel">
+    <div class="uno-logo">UNO</div>
+    <div id="winner-display"></div>
+    <div id="scoreboard"></div>
+    <div id="gameover-host-btns" style="display:none">
+      <button class="btn btn-primary btn-lg" id="btn-play-again">Play Again</button>
+    </div>
+    <button class="btn btn-ghost" id="btn-gameover-home">Back to Home</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/game.js"></script>
+</body>
+</html>

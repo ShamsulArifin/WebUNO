@@ -1,0 +1,795 @@
+/* ═══════════════════════════════════════════════════════════════
+   WebUNO – Stylesheet
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --red:    #e63946;
+  --green:  #2a9d5c;
+  --blue:   #2196f3;
+  --yellow: #ffc300;
+  --wild:   #333;
+  --bg:     #0f1923;
+  --surface:#1a2535;
+  --glass:  rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.12);
+  --text:   #f0f4ff;
+  --muted:  #8895aa;
+  --radius: 14px;
+  --card-w: 68px;
+  --card-h: 100px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── Screen System ── */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 16px;
+}
+.screen.active { display: flex; }
+
+/* ── Glass Card ── */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius);
+}
+
+/* ══════════════════════════════════════════════
+   HOME SCREEN
+══════════════════════════════════════════════ */
+.home-bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 20%, #3a1c71 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, #1a6b3a 0%, transparent 55%),
+              radial-gradient(ellipse at 60% 50%, #1565c0 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.home-card {
+  position: relative;
+  z-index: 1;
+  padding: 48px 56px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+
+.uno-logo {
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  background: linear-gradient(135deg, #ff5f6d, #ffc371);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.tagline { color: var(--muted); margin-bottom: 40px; font-size: 15px; }
+
+.home-actions { display: flex; flex-direction: column; gap: 14px; }
+
+/* ══════════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 28px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-lg { padding: 14px 36px; font-size: 17px; border-radius: 12px; }
+.btn-sm { padding: 7px 16px; font-size: 13px; border-radius: 8px; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #e63946, #c1121f);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(230,57,70,0.45);
+}
+.btn-primary:hover { box-shadow: 0 6px 24px rgba(230,57,70,0.6); }
+
+.btn-secondary {
+  background: linear-gradient(135deg, #2196f3, #0d62b8);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(33,150,243,0.35);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--muted);
+}
+.btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+.btn-uno {
+  background: linear-gradient(135deg, #ffc300, #ff5f6d);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 10px 30px;
+  border-radius: 50px;
+  box-shadow: 0 4px 20px rgba(255,195,0,0.5);
+  border: none;
+}
+.btn-uno:hover { box-shadow: 0 6px 28px rgba(255,195,0,0.7); }
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: var(--glass); }
+
+/* ══════════════════════════════════════════════
+   FORMS
+══════════════════════════════════════════════ */
+.panel {
+  padding: 40px 44px;
+  max-width: 460px;
+  width: 100%;
+}
+.panel h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 28px;
+  color: var(--text);
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 18px;
+}
+
+input[type="text"] {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+input[type="text"]:focus { border-color: rgba(255,255,255,0.4); }
+input[type="text"]::placeholder { color: #4a5568; }
+input[readonly] { cursor: default; }
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* ══════════════════════════════════════════════
+   LOBBY
+══════════════════════════════════════════════ */
+#screen-lobby {
+  align-items: stretch;
+  padding: 0;
+}
+
+.lobby-wrap {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  max-width: 980px;
+  margin: auto;
+  padding: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.lobby-main {
+  flex: 1;
+  min-width: 320px;
+  max-width: 540px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lobby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.uno-logo-sm {
+  font-size: 28px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff5f6d, #ffc371);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.room-code-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text);
+}
+.room-code-display span {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-family: 'Courier New', monospace;
+  color: #ffc300;
+}
+
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.player-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+}
+.player-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.player-name { font-weight: 600; font-size: 15px; }
+.player-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(255,195,0,0.15);
+  color: #ffc300;
+  border: 1px solid rgba(255,195,0,0.3);
+}
+
+.hint { color: var(--muted); font-size: 13px; text-align: center; }
+
+.lobby-invite {
+  width: 280px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.lobby-invite h3 { font-size: 18px; font-weight: 700; }
+
+.qr-container {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px;
+}
+.qr-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.invite-link-wrap {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.invite-link-wrap input {
+  flex: 1;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.invite-hint { color: var(--muted); font-size: 12px; text-align: center; }
+
+/* ══════════════════════════════════════════════
+   GAME SCREEN
+══════════════════════════════════════════════ */
+#screen-game {
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #0d2a1a 0%, #0f1923 70%);
+}
+
+/* Opponents */
+#opponents-area {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px 6px;
+  flex-wrap: wrap;
+  min-height: 80px;
+}
+
+.opponent-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  min-width: 80px;
+}
+.opponent-slot.active-turn {
+  border-color: #ffc300;
+  box-shadow: 0 0 16px rgba(255,195,0,0.35);
+  background: rgba(255,195,0,0.06);
+}
+.opponent-slot.disconnected { opacity: 0.4; }
+
+.opp-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opp-cards {
+  display: flex;
+  gap: -6px;
+  position: relative;
+  height: 46px;
+  align-items: center;
+}
+.opp-card-mini {
+  width: 26px;
+  height: 40px;
+  background: linear-gradient(135deg, #e63946, #c1121f);
+  border-radius: 5px;
+  border: 2px solid rgba(255,255,255,0.2);
+  margin-left: -8px;
+  box-shadow: 1px 1px 4px rgba(0,0,0,0.4);
+}
+.opp-card-mini:first-child { margin-left: 0; }
+.opp-count-badge {
+  background: rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 2px;
+}
+.uno-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffc300;
+  letter-spacing: 1px;
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+
+/* Play area */
+.play-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+}
+
+.deck-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+.card-back {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
+  border: 3px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  position: relative;
+  user-select: none;
+}
+.card-back::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.card-back span {
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.card-back:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
+
+.discard-card {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 12px;
+  border: 3px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  transition: all 0.25s cubic-bezier(.175,.885,.32,1.275);
+  font-weight: 900;
+  font-size: 20px;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+/* Uno cards */
+.uno-card {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 12px;
+  border: 3px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: clamp(12px, 2.5vw, 22px);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+}
+.uno-card:hover {
+  transform: translateY(-14px) scale(1.05);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+  border-color: rgba(255,255,255,0.7);
+  z-index: 10;
+}
+.uno-card.playable { border-color: rgba(255,255,255,0.5); }
+.uno-card.playable::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  pointer-events: none;
+}
+.uno-card.not-playable {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+}
+.uno-card.not-playable:hover { transform: none; }
+
+/* Colors */
+.color-red    { background: linear-gradient(135deg, #e63946 0%, #a4262f 100%); color: #fff; }
+.color-green  { background: linear-gradient(135deg, #2a9d5c 0%, #1a6b3a 100%); color: #fff; }
+.color-blue   { background: linear-gradient(135deg, #2196f3 0%, #0d62b8 100%); color: #fff; }
+.color-yellow { background: linear-gradient(135deg, #ffc300 0%, #e6a800 100%); color: #333; }
+.color-wild   { background: linear-gradient(135deg, #4a0e8f, #e63946, #ffc300, #2a9d5c); color: #fff; }
+
+/* Card face labels */
+.card-value {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.card-value.tl { top: 5px; left: 6px; }
+.card-value.br { bottom: 5px; right: 6px; transform: rotate(180deg); }
+.card-center { font-size: clamp(14px, 2vw, 22px); font-weight: 900; z-index: 1; }
+
+/* Oval background on card center */
+.card-oval {
+  position: absolute;
+  width: 90%;
+  height: 70%;
+  background: rgba(255,255,255,0.12);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+
+/* Status bar */
+.game-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(0,0,0,0.3);
+  padding: 8px 20px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  display: inline-block;
+  transition: background 0.3s;
+}
+.color-dot.red    { background: var(--red); }
+.color-dot.green  { background: var(--green); }
+.color-dot.blue   { background: var(--blue); }
+.color-dot.yellow { background: var(--yellow); }
+.color-dot.wild   { background: linear-gradient(135deg, #4a0e8f, #e63946, #ffc300, #2a9d5c); }
+
+/* Action bar */
+#action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 4px 16px 6px;
+}
+
+/* My Hand */
+#my-hand-area {
+  padding: 6px 8px 12px;
+  background: rgba(0,0,0,0.25);
+  border-top: 1px solid var(--glass-border);
+  max-height: 160px;
+}
+
+#my-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: -8px;
+  overflow-x: auto;
+  padding: 8px 16px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+#my-hand .uno-card { margin-left: -8px; }
+#my-hand .uno-card:first-child { margin-left: 0; }
+
+/* ══════════════════════════════════════════════
+   COLOR PICKER
+══════════════════════════════════════════════ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-picker-panel {
+  padding: 32px 40px;
+  text-align: center;
+}
+.color-picker-panel h3 { font-size: 20px; margin-bottom: 24px; }
+
+.color-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.color-btn {
+  padding: 16px 28px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+}
+.color-btn:hover { transform: scale(1.06); }
+.color-btn.red    { background: var(--red);    color: #fff; }
+.color-btn.green  { background: var(--green);  color: #fff; }
+.color-btn.blue   { background: var(--blue);   color: #fff; }
+.color-btn.yellow { background: var(--yellow); color: #333; }
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+#toast-container {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: max-content;
+  max-width: 90vw;
+}
+
+.toast {
+  background: rgba(30,40,55,0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: slideDown 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+.toast.error { border-color: rgba(230,57,70,0.5); color: #ff8a93; }
+.toast.success { border-color: rgba(42,157,92,0.5); color: #5de8a0; }
+.toast.info { border-color: rgba(255,195,0,0.4); color: #ffd84d; }
+
+@keyframes slideDown {
+  from { opacity:0; transform: translateY(-10px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════
+   GAME OVER
+══════════════════════════════════════════════ */
+.gameover-panel {
+  max-width: 500px;
+  width: 100%;
+  padding: 48px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+#winner-display {
+  font-size: 22px;
+  font-weight: 700;
+}
+#winner-display .winner-name {
+  font-size: 32px;
+  background: linear-gradient(135deg, #ffc300, #ff5f6d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#scoreboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  font-size: 15px;
+}
+.score-row.winner {
+  background: rgba(255,195,0,0.1);
+  border-color: rgba(255,195,0,0.3);
+  color: #ffc300;
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  :root { --card-w: 54px; --card-h: 80px; }
+
+  .home-card { padding: 32px 24px; }
+  .uno-logo { font-size: 52px; }
+  .panel { padding: 28px 20px; }
+  .lobby-invite { width: 100%; }
+  .lobby-main { min-width: unset; }
+
+  #screen-game {
+    display: flex;
+  }
+
+  .game-status-bar { font-size: 12px; padding: 6px 14px; gap: 10px; }
+  #my-hand-area { max-height: 130px; }
+
+  .gameover-panel { padding: 32px 20px; }
+  .color-picker-panel { padding: 24px 20px; }
+}
+
+/* ══════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════ */
+@keyframes cardPlay {
+  0%   { transform: scale(1) translateY(0); opacity: 1; }
+  50%  { transform: scale(1.15) translateY(-20px); }
+  100% { transform: scale(1) translateY(0); opacity: 0; }
+}
+@keyframes bounceIn {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.bounce-in { animation: bounceIn 0.4s ease forwards; }
