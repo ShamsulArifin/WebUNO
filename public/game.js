@@ -1,242 +1,224 @@
-/* ═══════════════════════════════════════════════════════════════
-   WebUNO – Client Game Logic
-═══════════════════════════════════════════════════════════════ */
+/* ── WebUNO client ── */
 
 const socket = io();
 
-// ── State ──────────────────────────────────────────────────────
-let myId        = null;
-let myName      = null;
-let roomCode    = null;
-let roomState   = null;      // latest room_update payload
-let myHand      = [];
-let pendingWild = null;      // card waiting for color pick
-let canPlayDrawn = false;    // after drawing 1 card, can optionally play it
-let drawnCard    = null;     // the card drawn
+// ── State ─────────────────────────────────────────────────────
+let myId          = null;
+let myName        = '';
+let roomCode      = null;
+let roomState     = null;
+let myHand        = [];
+let pendingWild   = null;   // card awaiting color choice
+let awaitDrawPlay = false;  // drew a playable card; can play or pass
 
-// ── Screen Router ──────────────────────────────────────────────
-function showScreen(id) {
+// ── Helpers ───────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const esc = s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
+  $(id).classList.add('active');
 }
 
-// ── Toast ──────────────────────────────────────────────────────
-function toast(msg, type = 'info', duration = 3000) {
+function toast(msg, type = '', ms = 2800) {
   const el = document.createElement('div');
-  el.className = `toast ${type}`;
+  el.className = 'toast' + (type ? ' ' + type : '');
   el.textContent = msg;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), duration);
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), ms);
 }
 
-// ── Socket ID ─────────────────────────────────────────────────
+// ── Socket lifecycle ──────────────────────────────────────────
 socket.on('connect', () => {
   myId = socket.id;
-  // Auto-join from URL if path is /join/CODE
+  // Handle /join/CODE URL
   const m = location.pathname.match(/^\/join\/([A-Z0-9]{4,8})$/i);
   if (m) {
-    const code = m[1].toUpperCase();
-    document.getElementById('join-code').value = code;
-    showScreen('join');
+    $('join-code').value = m[1].toUpperCase();
+    show('s-join');
   }
 });
 
-socket.on('disconnect', () => {
-  toast('Disconnected from server', 'error');
-});
+socket.on('disconnect', () => toast('Disconnected', 'err'));
 
-// ── Server Events ─────────────────────────────────────────────
+socket.on('error', ({ message }) => toast(message, 'err'));
 
+// ── Room events ───────────────────────────────────────────────
 socket.on('room_created', ({ code }) => {
   roomCode = code;
-  showScreen('lobby');
-  loadLobbyInvite(code);
+  show('s-lobby');
+  fetchInvite(code);
   history.replaceState({}, '', '/');
 });
 
 socket.on('room_joined', ({ code }) => {
   roomCode = code;
-  showScreen('lobby');
-  loadLobbyInvite(code);
+  show('s-lobby');
+  fetchInvite(code);
   history.replaceState({}, '', '/');
 });
 
-socket.on('room_update', (state) => {
+socket.on('room_update', state => {
   roomState = state;
   if (state.status === 'waiting') renderLobby(state);
   else if (state.status === 'playing') renderGame(state);
-  else if (state.status === 'finished') renderGame(state);
+  // 'finished' handled by game_over event; renderGame keeps board visible until then
 });
 
 socket.on('hand_update', ({ hand }) => {
   myHand = hand;
-  if (roomState && roomState.status === 'playing') renderMyHand();
+  if (roomState?.status === 'playing') renderHand();
 });
 
 socket.on('game_started', () => {
-  canPlayDrawn = false;
-  drawnCard = null;
-  showScreen('game');
-});
-
-socket.on('card_played', ({ playerName, card, currentColor }) => {
-  // Visual feedback already handled by room_update
-});
-
-socket.on('cards_drawn', ({ playerName, count }) => {
-  if (playerName !== myName) {
-    toast(`${playerName} drew ${count} card${count > 1 ? 's' : ''}`, 'info', 2000);
-  }
+  awaitDrawPlay = false;
+  pendingWild   = null;
+  show('s-game');
 });
 
 socket.on('can_play_drawn', ({ card }) => {
-  canPlayDrawn = true;
-  drawnCard = card;
-  renderMyHand();
-  showPassButton(true);
-  toast('You drew a playable card — play it or pass', 'info');
+  awaitDrawPlay = true;
+  // hand_update arrives with the new card already included;
+  // renderHand will highlight only that card
+  renderHand();
+  $('btn-pass').style.display = 'inline-flex';
+  toast('Tap the drawn card to play it, or pass');
 });
 
-socket.on('uno_called', ({ playerName }) => {
-  toast(`${playerName} called UNO! 🃏`, 'info', 2500);
+socket.on('cards_drawn', ({ playerName, count }) => {
+  if (playerName !== myName)
+    toast(`${playerName} drew ${count} card${count > 1 ? 's' : ''}`);
 });
 
-socket.on('uno_caught', ({ catcherName, targetName }) => {
-  toast(`${catcherName} caught ${targetName} — 2 card penalty! 😬`, 'error', 3000);
+socket.on('card_played', ({ playerName, card }) => {
+  if (playerName !== myName)
+    toast(`${playerName} played ${cardLabel(card)}`);
 });
 
-socket.on('player_disconnected', ({ playerName }) => {
-  toast(`${playerName} disconnected`, 'error', 3500);
-});
+socket.on('uno_called',       ({ playerName }) => toast(`${playerName} — UNO! 🃏`, 'ok'));
+socket.on('uno_caught',       ({ catcherName, targetName }) =>
+  toast(`${catcherName} caught ${targetName}! +2 cards`, 'err'));
+socket.on('player_disconnected', ({ playerName }) =>
+  toast(`${playerName} disconnected`, 'err'));
 
 socket.on('return_to_lobby', () => {
-  canPlayDrawn = false;
-  drawnCard = null;
-  showScreen('lobby');
-  loadLobbyInvite(roomCode);
+  awaitDrawPlay = false;
+  pendingWild   = null;
+  show('s-lobby');
+  fetchInvite(roomCode);
 });
 
 socket.on('game_over', ({ winnerId, winnerName, points, scores }) => {
-  showGameOver(winnerId, winnerName, points, scores);
-});
+  show('s-gameover');
 
-socket.on('error', ({ message }) => {
-  toast(message, 'error');
+  $('go-winner').innerHTML =
+    `<span>${esc(winnerName)}</span> wins!<br>` +
+    `<small style="font-size:14px;color:var(--muted)">+${points} pts</small>`;
+
+  const sb = $('go-scores');
+  sb.innerHTML = '';
+  [...scores].sort((a,b) => b.score - a.score).forEach((s, i) => {
+    const r = document.createElement('div');
+    r.className = 'score-row' + (i === 0 ? ' top' : '');
+    r.innerHTML = `<span>${i+1}. ${esc(s.name)}</span><span>${s.score}</span>`;
+    sb.appendChild(r);
+  });
+
+  $('go-host-btn').style.display = roomState?.host === myId ? 'block' : 'none';
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  HOME SCREEN
+//  HOME
 // ═══════════════════════════════════════════════════════════════
+$('btn-create').onclick     = () => { show('s-create'); $('create-name').focus(); };
+$('btn-join-home').onclick  = () => { show('s-join');   $('join-name').focus();   };
+$('btn-create-back').onclick = () => show('s-home');
+$('btn-join-back').onclick   = () => show('s-home');
 
-document.getElementById('btn-create').addEventListener('click', () => {
-  showScreen('create');
-  document.getElementById('create-name').focus();
-});
+// ── Create ─────────────────────────────────────────────────────
+$('btn-create-confirm').onclick = doCreate;
+$('create-name').addEventListener('keydown', e => e.key === 'Enter' && doCreate());
 
-document.getElementById('btn-join-home').addEventListener('click', () => {
-  showScreen('join');
-  document.getElementById('join-name').focus();
-});
-
-document.getElementById('btn-create-back').addEventListener('click', () => showScreen('home'));
-document.getElementById('btn-join-back').addEventListener('click', () => showScreen('home'));
-
-// ── Create Room ────────────────────────────────────────────────
-
-document.getElementById('btn-create-confirm').addEventListener('click', createRoom);
-document.getElementById('create-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
-
-function createRoom() {
-  const name = document.getElementById('create-name').value.trim();
-  if (!name) { toast('Enter your name', 'error'); return; }
+function doCreate() {
+  const name = $('create-name').value.trim();
+  if (!name) { toast('Enter your name', 'err'); return; }
   myName = name;
   socket.emit('create_room', { name });
 }
 
-// ── Join Room ──────────────────────────────────────────────────
-
-document.getElementById('btn-join-confirm').addEventListener('click', joinRoom);
-document.getElementById('join-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
-document.getElementById('join-name').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
-
-// Force uppercase in room code input
-document.getElementById('join-code').addEventListener('input', function() {
+// ── Join ───────────────────────────────────────────────────────
+$('btn-join-confirm').onclick = doJoin;
+$('join-code').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
+$('join-name').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
+$('join-code').addEventListener('input', function() {
   this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 
-function joinRoom() {
-  const name = document.getElementById('join-name').value.trim();
-  const code = document.getElementById('join-code').value.trim().toUpperCase();
-  if (!name) { toast('Enter your name', 'error'); return; }
-  if (code.length < 4) { toast('Enter a valid room code', 'error'); return; }
+function doJoin() {
+  const name = $('join-name').value.trim();
+  const code = $('join-code').value.trim().toUpperCase();
+  if (!name)          { toast('Enter your name', 'err'); return; }
+  if (code.length < 4){ toast('Enter the room code', 'err'); return; }
   myName = name;
-  socket.emit('join_room', { code, name });
+  socket.emit('join_room', { name, code });
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  LOBBY
 // ═══════════════════════════════════════════════════════════════
-
-const AVATAR_COLORS = ['#e63946','#2a9d5c','#2196f3','#ffc300','#9c27b0','#ff5722'];
+const PCOLORS = ['#e63946','#2a9d5c','#3b82f6','#f59e0b','#8b5cf6','#f97316'];
 
 function renderLobby(state) {
-  document.getElementById('lobby-code').textContent = state.code;
+  $('lcode').textContent = state.code;
 
-  // Players list
-  const list = document.getElementById('lobby-players');
+  const list = $('lobby-players');
   list.innerHTML = '';
   state.players.forEach((p, i) => {
     const div = document.createElement('div');
     div.className = 'player-item';
-    const initial = p.name.charAt(0).toUpperCase();
-    const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
     div.innerHTML = `
-      <div class="player-avatar" style="background:${avatarColor}">${initial}</div>
-      <span class="player-name">${escHtml(p.name)} ${p.id === myId ? '<span style="font-size:11px;color:var(--muted)">(you)</span>' : ''}</span>
-      ${p.id === state.host ? '<span class="player-badge">HOST</span>' : ''}
+      <div class="p-avatar" style="background:${PCOLORS[i % PCOLORS.length]}">${esc(p.name[0].toUpperCase())}</div>
+      <span class="p-name">${esc(p.name)}${p.id === myId ? '<span class="p-you">(you)</span>' : ''}</span>
+      ${p.id === state.host ? '<span class="p-host">host</span>' : ''}
     `;
     list.appendChild(div);
   });
 
-  // Host controls
   const isHost = state.host === myId;
-  document.getElementById('lobby-host-controls').style.display = isHost ? 'block' : 'none';
-  document.getElementById('lobby-guest-info').style.display = isHost ? 'none' : 'block';
+  $('host-section').style.display  = isHost ? 'flex' : 'none';
+  $('guest-section').style.display = isHost ? 'none' : 'block';
 
   if (isHost) {
-    const enough = state.players.length >= 2;
-    const full   = state.players.length >= 6;
-    const btn = document.getElementById('btn-start');
-    btn.disabled = !enough;
-    const hint = document.getElementById('lobby-hint');
-    if (full) hint.textContent = 'Room is full (6/6) — ready to start!';
-    else if (enough) hint.textContent = `${state.players.length}/6 players — ready to start!`;
-    else hint.textContent = `Waiting for more players… (${state.players.length}/6, need at least 2)`;
+    const n   = state.players.length;
+    const btn = $('btn-start');
+    btn.disabled = n < 2;
+    $('lobby-hint').textContent =
+      n >= 6 ? 'Room full — ready!' :
+      n >= 2 ? `${n}/6 players — ready to start` :
+               `Waiting for players… ${n}/6`;
   }
 }
 
-async function loadLobbyInvite(code) {
-  document.getElementById('lobby-code').textContent = code;
-  document.getElementById('btn-copy-code').onclick = () => {
-    navigator.clipboard.writeText(code).then(() => toast('Room code copied!', 'success', 1800));
-  };
+async function fetchInvite(code) {
+  $('lcode').textContent = code;
+
+  $('btn-copy-code').onclick = () =>
+    navigator.clipboard.writeText(code)
+      .then(() => toast('Code copied', 'ok'));
 
   try {
-    const res = await fetch(`/api/qr/${code}`);
+    const res  = await fetch(`/api/qr/${code}`);
     const data = await res.json();
-    document.getElementById('qr-image').src = data.qr;
-    document.getElementById('invite-link').value = data.url;
-    document.getElementById('btn-copy-link').onclick = () => {
-      navigator.clipboard.writeText(data.url).then(() => toast('Link copied!', 'success', 1800));
-    };
-  } catch (e) {
-    console.error('QR fetch failed', e);
-  }
+    $('qr-img').src           = data.qr;
+    $('invite-link').value    = data.url;
+    $('btn-copy-link').onclick = () =>
+      navigator.clipboard.writeText(data.url)
+        .then(() => toast('Link copied', 'ok'));
+  } catch { /* QR unavailable */ }
 }
 
-document.getElementById('btn-start').addEventListener('click', () => {
-  socket.emit('start_game');
-});
+$('btn-start').onclick = () => socket.emit('start_game');
 
 // ═══════════════════════════════════════════════════════════════
 //  GAME
@@ -244,89 +226,94 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
 function renderGame(state) {
   renderOpponents(state);
-  renderDiscardPile(state);
-  renderStatusBar(state);
-  renderMyHand();
+  renderDiscard(state);
+  renderStatus(state);
+  renderHand();
   updateDrawPile(state);
 }
 
-// ── Opponents ─────────────────────────────────────────────────
-
+// ── Opponents ──────────────────────────────────────────────────
 function renderOpponents(state) {
-  const area = document.getElementById('opponents-area');
+  const area = $('opp-area');
   area.innerHTML = '';
-  const opponents = state.players.filter(p => p.id !== myId);
-
-  opponents.forEach((p, i) => {
+  state.players.filter(p => p.id !== myId).forEach(p => {
     const isActive = state.players[state.currentPlayerIndex]?.id === p.id;
-    const slot = document.createElement('div');
-    slot.className = `opponent-slot glass${isActive ? ' active-turn' : ''}${!p.connected ? ' disconnected' : ''}`;
+    const div = document.createElement('div');
+    div.className = `opp-slot${isActive ? ' active' : ''}${!p.connected ? ' offline' : ''}`;
 
-    // Show mini cards (max 7 visible)
-    const show = Math.min(p.handCount, 7);
-    let cardsHtml = '<div class="opp-cards">';
-    for (let c = 0; c < show; c++) {
-      cardsHtml += '<div class="opp-card-mini"></div>';
-    }
-    cardsHtml += '</div>';
+    const show = Math.min(p.handCount, 6);
+    let minis = '<div class="opp-minis">';
+    for (let i = 0; i < show; i++) minis += '<div class="mini-card"></div>';
+    minis += '</div>';
 
-    const catchBtn = (p.handCount === 1 && !p.saidUno && state.players[state.currentPlayerIndex]?.id !== p.id)
-      ? `<button class="btn btn-sm" style="background:#e63946;color:#fff;margin-top:4px;font-size:10px;padding:2px 10px" onclick="catchUno('${p.id}')">Catch!</button>`
+    // Catch UNO button: show when player has 1 card, hasn't called UNO, and it's NOT their turn
+    const canCatch = p.handCount === 1 && !p.saidUno && !isActive;
+    const catchHtml = canCatch
+      ? `<button class="catch-btn" onclick="catchUno('${p.id}')">Catch UNO</button>`
       : '';
 
-    slot.innerHTML = `
-      <span class="opp-name">${escHtml(p.name)}</span>
-      ${cardsHtml}
-      <span class="opp-count-badge">${p.handCount} card${p.handCount !== 1 ? 's' : ''}</span>
-      ${p.saidUno ? '<span class="uno-badge">UNO!</span>' : ''}
-      ${catchBtn}
-      ${!p.connected ? '<span style="font-size:10px;color:var(--muted)">offline</span>' : ''}
+    div.innerHTML = `
+      <span class="opp-name">${esc(p.name)}</span>
+      ${minis}
+      <span class="opp-count">${p.handCount}</span>
+      ${p.saidUno ? '<span class="uno-tag">UNO!</span>' : ''}
+      ${catchHtml}
     `;
-    area.appendChild(slot);
+    area.appendChild(div);
   });
 }
 
-// ── Discard Pile ──────────────────────────────────────────────
-
-function renderDiscardPile(state) {
-  const el = document.getElementById('discard-pile');
-  if (!state.topCard) { el.textContent = ''; return; }
-  el.className = `discard-card color-${state.currentColor || state.topCard.color}`;
-  el.innerHTML = buildCardFace(state.topCard, state.currentColor);
+// ── Discard pile ───────────────────────────────────────────────
+function renderDiscard(state) {
+  const el = $('discard-pile');
+  if (!state.topCard) { el.className = 'card'; el.innerHTML = ''; return; }
+  const col = state.currentColor || state.topCard.color;
+  el.className = `card c-${col}`;
+  el.innerHTML = cardFaceHtml(state.topCard);
 }
 
-// ── Status Bar ────────────────────────────────────────────────
+// ── Status row ─────────────────────────────────────────────────
+function renderStatus(state) {
+  $('st-dir').textContent = state.direction === 1 ? '↻' : '↺';
 
-function renderStatusBar(state) {
-  const dir = document.getElementById('status-direction');
-  dir.textContent = state.direction === 1 ? '↻ CW' : '↺ CCW';
+  const dot = $('st-color');
+  dot.className = `cdot ${state.currentColor || 'wild'}`;
 
-  const dot = document.getElementById('status-color');
-  dot.className = `color-dot ${state.currentColor || 'wild'}`;
-
-  const turnEl = document.getElementById('status-turn');
+  const turnEl  = $('st-turn');
   const current = state.players[state.currentPlayerIndex];
-  if (current) {
-    if (current.id === myId) {
-      turnEl.textContent = 'Your turn!';
-      turnEl.style.color = '#ffc300';
-    } else {
-      turnEl.textContent = `${current.name}'s turn`;
-      turnEl.style.color = 'var(--muted)';
-    }
-  }
-
-  // Draw stack notice
-  if (state.drawStack > 0) {
-    toast(`Draw stack: +${state.drawStack}`, 'info', 1000);
+  if (!current) return;
+  if (current.id === myId) {
+    turnEl.textContent = 'Your turn';
+    turnEl.className   = 'my-turn';
+  } else {
+    turnEl.textContent = `${current.name}'s turn`;
+    turnEl.className   = '';
   }
 }
 
-// ── My Hand ───────────────────────────────────────────────────
+// ── Draw pile ──────────────────────────────────────────────────
+function updateDrawPile(state) {
+  const isMyTurn = state.players[state.currentPlayerIndex]?.id === myId;
+  const dp = $('draw-pile');
+  dp.style.opacity = isMyTurn ? '1' : '0.5';
+  dp.style.cursor  = isMyTurn ? 'pointer' : 'default';
 
-function renderMyHand() {
-  const hand = document.getElementById('my-hand');
-  hand.innerHTML = '';
+  const lbl = $('draw-label');
+  lbl.textContent = state.drawStack > 0 ? `+${state.drawStack}` : 'DRAW';
+}
+
+$('draw-pile').onclick = () => {
+  if (!roomState || roomState.status !== 'playing') return;
+  const isMyTurn = roomState.players[roomState.currentPlayerIndex]?.id === myId;
+  if (!isMyTurn)    { toast("Not your turn", 'err', 1500); return; }
+  if (awaitDrawPlay){ return; } // must play or pass the drawn card first
+  socket.emit('draw_card');
+};
+
+// ── My hand ─────────────────────────────────────────────────────
+function renderHand() {
+  const container = $('my-hand');
+  container.innerHTML = '';
   if (!roomState) return;
 
   const isMyTurn = roomState.players[roomState.currentPlayerIndex]?.id === myId;
@@ -335,36 +322,37 @@ function renderMyHand() {
   myHand.forEach(card => {
     let playable = false;
     if (isMyTurn) {
-      if (canPlayDrawn) {
-        // Only the drawn card is playable
-        playable = card.id === drawnCard?.id;
+      if (awaitDrawPlay) {
+        // Only the most recently drawn card is eligible — last card in hand
+        // Server sends can_play_drawn with the card; we match by id
+        playable = card.id === _drawnCardId;
       } else {
-        playable = canPlayCard(card, topCard, roomState.currentColor, roomState.drawStack);
+        playable = clientCanPlay(card, topCard, roomState.currentColor, roomState.drawStack);
       }
     }
 
     const el = document.createElement('div');
-    el.className = `uno-card color-${card.color} ${playable ? 'playable' : 'not-playable'}`;
-    el.innerHTML = buildCardFace(card, card.color);
-    el.title = cardLabel(card);
-
-    if (playable) {
-      el.addEventListener('click', () => handlePlayCard(card));
-    }
-    hand.appendChild(el);
+    el.className = `hand-card c-${card.color}${playable ? ' playable' : ' dim'}`;
+    el.innerHTML  = cardFaceHtml(card);
+    el.title      = cardLabel(card);
+    if (playable) el.onclick = () => handlePlay(card);
+    container.appendChild(el);
   });
 
-  // UNO button visibility
-  const unoBtn = document.getElementById('btn-uno');
+  // UNO button
   const me = roomState.players.find(p => p.id === myId);
-  unoBtn.style.display = (myHand.length === 1 && isMyTurn && me && !me.saidUno) ? 'inline-flex' : 'none';
+  $('btn-uno').style.display =
+    (myHand.length === 1 && isMyTurn && me && !me.saidUno) ? 'inline-flex' : 'none';
 }
 
-function canPlayCard(card, topCard, currentColor, drawStack) {
+// Track which card was drawn (set by can_play_drawn)
+let _drawnCardId = null;
+socket.on('can_play_drawn', ({ card }) => { _drawnCardId = card.id; });
+
+function clientCanPlay(card, topCard, currentColor, drawStack) {
   if (!topCard) return true;
-  // If draw stack active, can only stack same type
   if (drawStack > 0) {
-    if (topCard.value === 'draw2' && card.value !== 'draw2') return false;
+    if (topCard.value === 'draw2'      && card.value !== 'draw2')      return false;
     if (topCard.value === 'wild_draw4' && card.value !== 'wild_draw4') return false;
   }
   if (card.value === 'wild' || card.value === 'wild_draw4') return true;
@@ -373,132 +361,58 @@ function canPlayCard(card, topCard, currentColor, drawStack) {
   return false;
 }
 
-function handlePlayCard(card) {
+function handlePlay(card) {
   if (card.value === 'wild' || card.value === 'wild_draw4') {
     pendingWild = card;
-    document.getElementById('color-picker').style.display = 'flex';
+    $('color-picker').style.display = 'flex';
     return;
   }
   socket.emit('play_card', { cardId: card.id, chosenColor: null });
-  canPlayDrawn = false;
-  drawnCard = null;
-  showPassButton(false);
+  awaitDrawPlay = false;
+  _drawnCardId  = null;
+  $('btn-pass').style.display = 'none';
 }
 
 // Color picker
-document.querySelectorAll('.color-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+document.querySelectorAll('.cbtn').forEach(btn => {
+  btn.onclick = () => {
     if (!pendingWild) return;
-    const color = btn.dataset.color;
-    socket.emit('play_card', { cardId: pendingWild.id, chosenColor: color });
-    pendingWild = null;
-    canPlayDrawn = false;
-    drawnCard = null;
-    showPassButton(false);
-    document.getElementById('color-picker').style.display = 'none';
-  });
+    socket.emit('play_card', { cardId: pendingWild.id, chosenColor: btn.dataset.color });
+    pendingWild   = null;
+    awaitDrawPlay = false;
+    _drawnCardId  = null;
+    $('btn-pass').style.display    = 'none';
+    $('color-picker').style.display = 'none';
+  };
 });
 
-// ── Draw pile click ────────────────────────────────────────────
-
-document.getElementById('draw-pile').addEventListener('click', () => {
-  if (!roomState || roomState.status !== 'playing') return;
-  const isMyTurn = roomState.players[roomState.currentPlayerIndex]?.id === myId;
-  if (!isMyTurn) { toast("It's not your turn", 'error', 1500); return; }
-  if (canPlayDrawn) return; // must play or pass first
-  socket.emit('draw_card');
-});
-
-function updateDrawPile(state) {
-  const isMyTurn = state.players[state.currentPlayerIndex]?.id === myId;
-  const dp = document.getElementById('draw-pile');
-  if (isMyTurn) {
-    dp.style.cursor = 'pointer';
-    dp.style.opacity = '1';
-  } else {
-    dp.style.cursor = 'default';
-    dp.style.opacity = '0.6';
-  }
-  if (state.drawStack > 0) {
-    dp.querySelector('span').textContent = `+${state.drawStack}`;
-  } else {
-    dp.querySelector('span').textContent = 'DRAW';
-  }
-}
-
-// ── Pass turn ─────────────────────────────────────────────────
-
-function showPassButton(show) {
-  document.getElementById('btn-pass').style.display = show ? 'inline-flex' : 'none';
-}
-
-document.getElementById('btn-pass').addEventListener('click', () => {
+// Pass button
+$('btn-pass').onclick = () => {
   socket.emit('pass_turn');
-  canPlayDrawn = false;
-  drawnCard = null;
-  showPassButton(false);
-});
+  awaitDrawPlay = false;
+  _drawnCardId  = null;
+  $('btn-pass').style.display = 'none';
+};
 
-// ── UNO button ────────────────────────────────────────────────
+// UNO button
+$('btn-uno').onclick = () => socket.emit('say_uno');
 
-document.getElementById('btn-uno').addEventListener('click', () => {
-  socket.emit('say_uno');
-});
-
-// ── Catch UNO ────────────────────────────────────────────────
-
-function catchUno(targetId) {
-  socket.emit('catch_uno', { targetId });
-}
+// Catch UNO (called from inline onclick)
+function catchUno(targetId) { socket.emit('catch_uno', { targetId }); }
 window.catchUno = catchUno;
 
-// ═══════════════════════════════════════════════════════════════
-//  GAME OVER
-// ═══════════════════════════════════════════════════════════════
-
-function showGameOver(winnerId, winnerName, points, scores) {
-  showScreen('gameover');
-
-  document.getElementById('winner-display').innerHTML = `
-    🏆 Winner!<br>
-    <span class="winner-name">${escHtml(winnerName)}</span><br>
-    <span style="font-size:16px;color:var(--muted)">+${points} points</span>
-  `;
-
-  const sorted = [...scores].sort((a, b) => b.score - a.score);
-  const sb = document.getElementById('scoreboard');
-  sb.innerHTML = '<h3 style="margin-bottom:8px;font-size:16px">Scores</h3>';
-  sorted.forEach((s, i) => {
-    const row = document.createElement('div');
-    row.className = `score-row${s.name === winnerName ? ' winner' : ''}`;
-    row.innerHTML = `<span>${i + 1}. ${escHtml(s.name)}</span><span>${s.score} pts</span>`;
-    sb.appendChild(row);
-  });
-
-  const isHost = roomState?.host === myId;
-  document.getElementById('gameover-host-btns').style.display = isHost ? 'block' : 'none';
-}
-
-document.getElementById('btn-play-again').addEventListener('click', () => {
-  socket.emit('play_again');
-});
-
-document.getElementById('btn-gameover-home').addEventListener('click', () => {
-  location.href = '/';
-});
+// ── Game over ──────────────────────────────────────────────────
+$('btn-play-again').onclick = () => socket.emit('play_again');
+$('btn-go-home').onclick    = () => { location.href = '/'; };
 
 // ═══════════════════════════════════════════════════════════════
-//  CARD RENDERING
+//  Card rendering
 // ═══════════════════════════════════════════════════════════════
-
-function buildCardFace(card, displayColor) {
-  const label = cardLabel(card);
-  return `
-    <span class="card-value tl">${label}</span>
-    <div class="card-oval"></div>
-    <span class="card-center">${cardSymbol(card)}</span>
-    <span class="card-value br">${label}</span>
-  `;
+function cardFaceHtml(card) {
+  const lbl = cardLabel(card);
+  return `<span class="cv tl">${lbl}</span>
+          <span class="cc">${cardSymbol(card)}</span>
+          <span class="cv br">${lbl}</span>`;
 }
 
 function cardLabel(card) {
@@ -507,7 +421,7 @@ function cardLabel(card) {
     case 'reverse':    return '↺';
     case 'draw2':      return '+2';
     case 'wild':       return 'W';
-    case 'wild_draw4': return 'W+4';
+    case 'wild_draw4': return '+4';
     default:           return card.value;
   }
 }
@@ -517,30 +431,8 @@ function cardSymbol(card) {
     case 'skip':       return '⊘';
     case 'reverse':    return '↺';
     case 'draw2':      return '+2';
-    case 'wild':       return '🌈';
+    case 'wild':       return '●';
     case 'wild_draw4': return '+4';
     default:           return card.value;
   }
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  UTILITIES
-// ═══════════════════════════════════════════════════════════════
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// Handle /join/:code URLs on load
-(function checkJoinUrl() {
-  const m = location.pathname.match(/^\/join\/([A-Z0-9]{4,8})$/i);
-  if (m) {
-    const code = m[1].toUpperCase();
-    document.getElementById('join-code').value = code;
-    showScreen('join');
-  }
-})();
