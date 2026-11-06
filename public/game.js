@@ -1,4 +1,4 @@
-/* ── WebUNO client ── */
+/* ── WebUNO client ─────────────────────────────────────────── */
 
 const socket = io();
 
@@ -13,9 +13,9 @@ let awaitDrawPlay = false;
 let _drawnCardId  = null;
 let lastTopCardId = null;
 
-// ── Helpers ───────────────────────────────────────────────────
+// ── DOM helpers ───────────────────────────────────────────────
 const $   = id => document.getElementById(id);
-const esc = s  => String(s)
+const esc = s => String(s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -24,7 +24,7 @@ function show(id) {
   $(id).classList.add('active');
 }
 
-function toast(msg, type = '', ms = 2800) {
+function toast(msg, type = '', ms = 3000) {
   const el = document.createElement('div');
   el.className = 'toast' + (type ? ' ' + type : '');
   el.textContent = msg;
@@ -33,40 +33,40 @@ function toast(msg, type = '', ms = 2800) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  URL-BASED JOIN — runs immediately on page load
-//  This handles QR code scans and shared links like /join/ABCDEF
+//  QR / URL JOIN — runs immediately before socket connects
 // ═══════════════════════════════════════════════════════════════
-
-function getJoinCodeFromUrl() {
-  // Match /join/CODE or ?code=CODE or ?room=CODE
-  const pathMatch  = location.pathname.match(/\/join\/([A-Z0-9]{4,8})/i);
-  const paramCode  = new URLSearchParams(location.search).get('code') ||
-                     new URLSearchParams(location.search).get('room');
-  return (pathMatch?.[1] || paramCode || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-}
-
-// Called on page load immediately (before socket connects)
 (function initFromUrl() {
-  const code = getJoinCodeFromUrl();
+  const pathMatch = location.pathname.match(/\/join\/([A-Z0-9]{4,8})/i);
+  const qs        = new URLSearchParams(location.search);
+  const code      = (pathMatch?.[1] || qs.get('code') || qs.get('room') || '')
+                      .toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
   if (!code) return;
-  // Pre-fill and show join screen right away — no need to wait for socket
   $('join-code').value = code;
   show('s-join');
-  $('join-name').focus();
+  // Don't focus here — mobile keyboard shouldn't pop immediately on scan
 })();
 
-// ── Socket lifecycle ──────────────────────────────────────────
+// ── Socket ────────────────────────────────────────────────────
 socket.on('connect', () => {
   myId = socket.id;
-  // If we're on the join screen (came from QR), ensure code is still filled
-  const activeScreen = document.querySelector('.screen.active')?.id;
-  if (activeScreen === 's-join') {
-    const code = getJoinCodeFromUrl();
-    if (code && !$('join-code').value) $('join-code').value = code;
+  // If we're on the join screen (arrived via QR), keep the code filled
+  if (document.querySelector('.screen.active')?.id === 's-join') {
+    const pathMatch = location.pathname.match(/\/join\/([A-Z0-9]{4,8})/i);
+    if (pathMatch && !$('join-code').value)
+      $('join-code').value = pathMatch[1].toUpperCase();
   }
 });
 
-socket.on('disconnect', () => toast('Disconnected from server', 'err'));
+// NOTE: We intentionally do NOT show a toast on disconnect here.
+// The old code was triggering this because we called socket.disconnect()
+// manually when leaving. Now we never do that — we just navigate away.
+socket.on('disconnect', reason => {
+  // Only show disconnect if it was unexpected (not a manual page navigation)
+  if (reason !== 'io client disconnect') {
+    toast('Connection lost', 'err');
+  }
+});
+
 socket.on('error', ({ message }) => toast(message, 'err'));
 
 // ── Room events ───────────────────────────────────────────────
@@ -96,10 +96,8 @@ socket.on('hand_update', ({ hand }) => {
 });
 
 socket.on('game_started', () => {
-  awaitDrawPlay = false;
-  pendingWild   = null;
-  _drawnCardId  = null;
-  lastTopCardId = null;
+  awaitDrawPlay = false; pendingWild = null;
+  _drawnCardId = null; lastTopCardId = null;
   show('s-game');
 });
 
@@ -108,7 +106,7 @@ socket.on('can_play_drawn', ({ card }) => {
   awaitDrawPlay = true;
   renderHand('draw');
   $('btn-pass').style.display = 'inline-flex';
-  toast('Play the drawn card or pass');
+  toast('play drawn card or PASS');
 });
 
 socket.on('cards_drawn', ({ playerName, count }) => {
@@ -121,11 +119,12 @@ socket.on('card_played', ({ playerName, card }) => {
     toast(`${playerName} played ${cardLabel(card)}`);
 });
 
-socket.on('uno_called',          ({ playerName }) => toast(`${playerName} — UNO!`, 'ok'));
-socket.on('uno_caught',          ({ catcherName, targetName }) =>
-  toast(`${catcherName} caught ${targetName}! +2 cards`, 'err'));
+socket.on('uno_called', ({ playerName }) =>
+  toast(`${playerName} — UNO!`, 'ok'));
+socket.on('uno_caught', ({ catcherName, targetName }) =>
+  toast(`${catcherName} caught ${targetName}! +2`, 'err'));
 socket.on('player_disconnected', ({ playerName }) =>
-  toast(`${playerName} disconnected`, 'err'));
+  toast(`${playerName} left`, 'err', 2000));
 
 socket.on('return_to_lobby', () => {
   awaitDrawPlay = false; pendingWild = null; _drawnCardId = null;
@@ -136,8 +135,8 @@ socket.on('return_to_lobby', () => {
 socket.on('game_over', ({ winnerName, points, scores }) => {
   show('s-gameover');
   $('go-winner').innerHTML =
-    `${esc(winnerName)} wins!<br>` +
-    `<small style="font-size:13px;font-family:var(--font-body);color:var(--text2)">+${points} pts</small>`;
+    `${esc(winnerName)}<br>` +
+    `<span style="font-size:9px;color:var(--muted)">+${points} pts</span>`;
   const sb = $('go-scores');
   sb.innerHTML = '';
   [...scores].sort((a,b) => b.score - a.score).forEach((s, i) => {
@@ -160,10 +159,9 @@ $('btn-join-back').onclick   = () => show('s-home');
 // ── Create ────────────────────────────────────────────────────
 $('btn-create-confirm').onclick = doCreate;
 $('create-name').addEventListener('keydown', e => e.key === 'Enter' && doCreate());
-
 function doCreate() {
   const name = $('create-name').value.trim();
-  if (!name) { toast('Enter your name', 'err'); return; }
+  if (!name) { toast('enter your name', 'err'); return; }
   myName = name;
   socket.emit('create_room', { name });
 }
@@ -173,14 +171,13 @@ $('btn-join-confirm').onclick = doJoin;
 $('join-code').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
 $('join-name').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
 $('join-code').addEventListener('input', function() {
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
 });
-
 function doJoin() {
   const name = $('join-name').value.trim();
   const code = $('join-code').value.trim().toUpperCase();
-  if (!name)           { toast('Enter your name', 'err'); return; }
-  if (code.length < 4) { toast('Enter the room code', 'err'); return; }
+  if (!name)           { toast('enter your name', 'err'); return; }
+  if (code.length < 4) { toast('enter room code', 'err'); return; }
   myName = name;
   socket.emit('join_room', { name, code });
 }
@@ -188,7 +185,7 @@ function doJoin() {
 // ═══════════════════════════════════════════════════════════════
 //  LOBBY
 // ═══════════════════════════════════════════════════════════════
-const PCOLORS = ['#c0392b','#1a7a3a','#1a4fa0','#b8860b','#7b2d8b','#c05c1a'];
+const PCOLORS = ['#7a1a15','#1a5c2a','#1a2d7a','#7a5c15','#5a1a6e','#7a3a10'];
 
 function renderLobby(state) {
   $('lcode').textContent = state.code;
@@ -200,7 +197,7 @@ function renderLobby(state) {
     div.innerHTML = `
       <div class="p-avatar" style="background:${PCOLORS[i % PCOLORS.length]}">${esc(p.name[0].toUpperCase())}</div>
       <span class="p-name">${esc(p.name)}${p.id === myId ? '<span class="p-you"> (you)</span>' : ''}</span>
-      ${p.id === state.host ? '<span class="p-host">Host</span>' : ''}
+      ${p.id === state.host ? '<span class="p-host">HOST</span>' : ''}
     `;
     list.appendChild(div);
   });
@@ -208,42 +205,34 @@ function renderLobby(state) {
   const isHost = state.host === myId;
   $('host-section').style.display  = isHost ? 'flex' : 'none';
   $('guest-section').style.display = isHost ? 'none' : 'block';
-
   if (isHost) {
     const n = state.players.length;
     $('btn-start').disabled = n < 2;
     $('lobby-hint').textContent =
-      n >= 6 ? 'Room full — ready to start!' :
-      n >= 2 ? `${n}/6 players — ready to start` :
-               `Waiting for players… ${n}/6 (need 2+)`;
+      n >= 6 ? 'room full — ready!' :
+      n >= 2 ? `${n}/6 players ready` :
+               `waiting... ${n}/6 (need 2+)`;
   }
 }
 
 async function fetchInvite(code) {
   $('lcode').textContent = code;
   $('btn-copy-code').onclick = () =>
-    navigator.clipboard.writeText(code).then(() => toast('Code copied', 'ok'));
-
+    navigator.clipboard.writeText(code).then(() => toast('code copied', 'ok'));
   try {
     const r = await fetch(`/api/qr/${code}`);
     const d = await r.json();
     $('qr-img').src = d.qr;
     $('invite-link').value = d.url;
     $('btn-copy-link').onclick = () =>
-      navigator.clipboard.writeText(d.url).then(() => toast('Link copied', 'ok'));
-  } catch { /* QR unavailable */ }
+      navigator.clipboard.writeText(d.url).then(() => toast('link copied', 'ok'));
+  } catch { /* silent */ }
 }
 
 $('btn-start').onclick = () => socket.emit('start_game');
 
-// Leave lobby
-$('btn-leave-lobby').onclick = () => {
-  socket.disconnect();
-  myId = null; myName = ''; roomCode = null; roomState = null;
-  show('s-home');
-  // Reconnect for future use
-  socket.connect();
-};
+// Leave lobby — just reload (cleanest way, server handles disconnect)
+$('btn-leave-lobby').onclick = () => { location.href = '/'; };
 
 // ═══════════════════════════════════════════════════════════════
 //  GAME
@@ -265,9 +254,9 @@ function renderOpponents(state) {
     const div = document.createElement('div');
     div.className = `opp-slot${isActive ? ' active' : ''}${!p.connected ? ' offline' : ''}`;
 
-    const showCards = Math.min(p.handCount, 7);
+    const n = Math.min(p.handCount, 8);
     let minis = '<div class="opp-minis">';
-    for (let i = 0; i < showCards; i++) minis += '<div class="mini-card"></div>';
+    for (let i = 0; i < n; i++) minis += '<div class="mini-card"></div>';
     minis += '</div>';
 
     const canCatch = p.handCount === 1 && !p.saidUno && !isActive;
@@ -275,8 +264,8 @@ function renderOpponents(state) {
       <span class="opp-name">${esc(p.name)}</span>
       ${minis}
       <span class="opp-count">${p.handCount}</span>
-      ${p.saidUno ? '<span class="uno-tag">UNO!</span>' : ''}
-      ${canCatch ? `<button class="catch-btn" onclick="catchUno('${p.id}')">Catch!</button>` : ''}
+      ${p.saidUno ? '<span class="uno-tag">UNO</span>' : ''}
+      ${canCatch ? `<button class="catch-btn" onclick="catchUno('${p.id}')">CATCH</button>` : ''}
     `;
     area.appendChild(div);
   });
@@ -308,10 +297,10 @@ function renderStatus(state) {
   const el  = $('st-turn');
   if (!cur) return;
   if (cur.id === myId) {
-    el.textContent = 'Your turn';
+    el.textContent = 'YOUR TURN';
     el.className   = 'my-turn';
   } else {
-    el.textContent = `${cur.name}'s turn`;
+    el.textContent = `${cur.name.substring(0,8).toUpperCase()}`;
     el.className   = '';
   }
 }
@@ -328,7 +317,7 @@ function updateDrawPile(state) {
 $('draw-pile').onclick = () => {
   if (!roomState || roomState.status !== 'playing') return;
   const isMyTurn = roomState.players[roomState.currentPlayerIndex]?.id === myId;
-  if (!isMyTurn)    { toast("Not your turn", 'err', 1500); return; }
+  if (!isMyTurn)    { toast('not your turn', 'err', 1500); return; }
   if (awaitDrawPlay){ return; }
   socket.emit('draw_card');
 };
@@ -352,12 +341,11 @@ function renderHand(mode = '') {
 
     const wrap = document.createElement('div');
     wrap.className = `hcard-wrap ${playable ? 'playable' : 'dim'}`;
-    wrap.style.animationDelay = `${idx * 30}ms`;
+    wrap.style.animationDelay = `${idx * 28}ms`;
     if (mode === 'draw' && idx === myHand.length - 1)
       wrap.classList.add('draw-anim');
 
-    const el = buildCard(card, card.color);
-    wrap.appendChild(el);
+    wrap.appendChild(buildCard(card, card.color));
     if (playable) wrap.onclick = () => handlePlay(card);
     container.appendChild(wrap);
   });
@@ -413,26 +401,15 @@ function catchUno(targetId) { socket.emit('catch_uno', { targetId }); }
 window.catchUno = catchUno;
 
 // ── Leave game ────────────────────────────────────────────────
-$('btn-leave-game').onclick = () => {
-  $('leave-confirm').style.display = 'flex';
-};
-$('btn-leave-cancel').onclick = () => {
-  $('leave-confirm').style.display = 'none';
-};
+// Show confirm modal
+$('btn-leave-game').onclick   = () => { $('leave-confirm').style.display = 'flex'; };
+$('btn-leave-cancel').onclick = () => { $('leave-confirm').style.display = 'none'; };
 $('btn-leave-confirm').onclick = () => {
-  $('leave-confirm').style.display = 'none';
-  doLeave();
+  // Simply reload — server will handle the disconnect event
+  location.href = '/';
 };
 
-function doLeave() {
-  socket.disconnect();
-  myId = null; myName = ''; roomCode = null; roomState = null;
-  myHand = []; awaitDrawPlay = false; pendingWild = null; _drawnCardId = null; lastTopCardId = null;
-  show('s-home');
-  socket.connect();
-}
-
-// ── Game over actions ─────────────────────────────────────────
+// ── Game over ─────────────────────────────────────────────────
 $('btn-play-again').onclick = () => socket.emit('play_again');
 $('btn-go-home').onclick    = () => { location.href = '/'; };
 
@@ -446,9 +423,9 @@ function buildCard(card, colorHint) {
   const col    = colorHint || card.color;
 
   const el = document.createElement('div');
-  const colorCls = { red:'cr', green:'cg', blue:'cb', yellow:'cy', wild:'cw' }[col] || 'cw';
-  const typeCls  = isNum ? 'num' : isAct ? 'act' : isWild ? (card.value === 'wild_draw4' ? 'w4' : '') : '';
-  el.className   = `ucard ${colorCls} ${typeCls}`.trim();
+  const cc = { red:'cr', green:'cg', blue:'cb', yellow:'cy', wild:'cw' }[col] || 'cw';
+  const tc = isNum ? 'num' : isAct ? 'act' : isWild ? (card.value === 'wild_draw4' ? 'w4' : '') : '';
+  el.className = `ucard ${cc} ${tc}`.trim();
 
   if (isWild) {
     const bg = document.createElement('div');
@@ -465,10 +442,10 @@ function buildCard(card, colorHint) {
   tl.innerHTML = idxHtml(card);
   el.appendChild(tl);
 
-  const cc = document.createElement('div');
-  cc.className = 'center';
-  if (!isWild) cc.textContent = centerSym(card);
-  el.appendChild(cc);
+  const center = document.createElement('div');
+  center.className = 'center';
+  if (!isWild) center.textContent = centerSym(card);
+  el.appendChild(center);
 
   const br = document.createElement('div');
   br.className = 'idx br';
@@ -484,11 +461,10 @@ function idxHtml(card) {
     case 'reverse':    return '<span>↺</span>';
     case 'draw2':      return '<span>+2</span>';
     case 'wild':       return '<span>W</span>';
-    case 'wild_draw4': return '<span>W</span><span style="font-size:8px;margin-top:1px">+4</span>';
+    case 'wild_draw4': return '<span>W</span><span style="font-size:7px;margin-top:2px">+4</span>';
     default:           return `<span>${card.value}</span>`;
   }
 }
-
 function centerSym(card) {
   switch (card.value) {
     case 'skip':    return '⊘';
@@ -497,15 +473,14 @@ function centerSym(card) {
     default:        return card.value;
   }
 }
-
 function cardLabel(card) {
-  const cn = { red:'Red', green:'Green', blue:'Blue', yellow:'Yellow', wild:'Wild' };
+  const cn = { red:'RED', green:'GRN', blue:'BLU', yellow:'YLW', wild:'WLD' };
   switch (card.value) {
-    case 'skip':       return `${cn[card.color]} Skip`;
-    case 'reverse':    return `${cn[card.color]} Reverse`;
+    case 'skip':       return `${cn[card.color]} SKIP`;
+    case 'reverse':    return `${cn[card.color]} REV`;
     case 'draw2':      return `${cn[card.color]} +2`;
-    case 'wild':       return 'Wild';
-    case 'wild_draw4': return 'Wild +4';
+    case 'wild':       return 'WILD';
+    case 'wild_draw4': return 'WILD +4';
     default:           return `${cn[card.color]} ${card.value}`;
   }
 }
