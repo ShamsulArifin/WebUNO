@@ -35,14 +35,26 @@ function toast(msg, type = '', ms = 2800) {
 // ── Socket lifecycle ──────────────────────────────────────────
 socket.on('connect', () => {
   myId = socket.id;
-  const m = location.pathname.match(/^\/join\/([A-Z0-9]{4,8})$/i);
-  if (m) {
-    $('join-code').value = m[1].toUpperCase();
-    show('s-join');
-  }
+  // Handle /join/CODE URLs (from QR code or shared link)
+  checkJoinUrl();
 });
 socket.on('disconnect',  () => toast('Disconnected', 'err'));
 socket.on('error',       ({ message }) => toast(message, 'err'));
+
+// Check URL on load AND on every reconnect
+function checkJoinUrl() {
+  const m = location.pathname.match(/^\/join\/([A-Z0-9]{4,8})$/i);
+  if (!m) return;
+  const code = m[1].toUpperCase();
+  // Pre-fill code field
+  $('join-code').value = code;
+  // Only switch to join screen if we're on home (not already in a game/lobby)
+  const activeScreen = document.querySelector('.screen.active');
+  if (!activeScreen || activeScreen.id === 's-home') {
+    show('s-join');
+    $('join-name').focus();
+  }
+}
 
 // ── Room events ───────────────────────────────────────────────
 socket.on('room_created', ({ code }) => {
@@ -374,6 +386,9 @@ window.catchUno = catchUno;
 $('btn-play-again').onclick = () => socket.emit('play_again');
 $('btn-go-home').onclick    = () => { location.href = '/'; };
 
+// Run URL check immediately on page load too (catches fast connections)
+checkJoinUrl();
+
 // ═══════════════════════════════════════════════════════════════
 //  CARD BUILDER
 //  Renders a proper UNO card as a DOM element
@@ -386,12 +401,12 @@ $('btn-go-home').onclick    = () => { location.href = '/'; };
 function buildCard(card, colorHint) {
   const isWild = card.value === 'wild' || card.value === 'wild_draw4';
   const isNum  = !isNaN(parseInt(card.value, 10));
+  const isAct  = ['skip','reverse','draw2'].includes(card.value);
   const col    = colorHint || card.color;
 
   const el = document.createElement('div');
-  // Base classes
   const colorCls = colorShort(col);
-  const typeCls  = isNum ? 'num' : isWild ? (card.value==='wild_draw4'?'w4':'') : '';
+  const typeCls  = isNum ? 'num' : isAct ? 'act' : isWild ? (card.value==='wild_draw4'?'w4':'') : '';
   el.className   = `ucard ${colorCls} ${typeCls}`.trim();
 
   // Wild quadrant background div
